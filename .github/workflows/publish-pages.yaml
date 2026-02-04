@@ -33,6 +33,15 @@ jobs:
             echo "DEST_DIR=dev" >> $GITHUB_ENV
           fi
 
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./storybook-static
+          destination_dir: ${{ env.DEST_DIR }}
+          keep_files: true
+
   Deploy-To-GH-Pages:
     runs-on: ubuntu-latest
     needs: publish
@@ -43,5 +52,11 @@ jobs:
     steps:
       - name: Publish to GitHub Pages
         uses: actions/deploy-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./storybook-static
+          destination_dir: ${{ env.DEST_DIR }}
+          keep_files: true
 
     
