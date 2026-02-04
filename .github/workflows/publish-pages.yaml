@@ -1,43 +1,55 @@
-name: Build and Publish Storybook to GitHub Pages
+name: Build Storybook (development) and Publish to main:/docs/dev
+
 on:
   push:
     branches:
-      - 'development' # Use specific branch name
+      - development
+
 permissions:
-  contents: read
-  pages: write
-  id-token: write
-concurrency:
-  group: 'pages'
-  cancel-in-progress: false
+  contents: write
+
 jobs:
-  deploy:
+  publish:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - name: Checkout
+      - name: Checkout development
         uses: actions/checkout@v4
         with:
+          ref: development
           fetch-depth: 0
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm' # Adjust caching strategy and configuration if using other package managers
+          node-version: "20"
+          cache: "npm"
+
       - name: Install dependencies
-        run: npm ci # Replace with appropriate command if using other package managers
+        run: npm ci
+
       - name: Build Storybook
         run: npm run build-storybook
-      # Upload pages artifact
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: 'storybook-static'
-      # Deploy to Github Pages
-      - id: deploy
-        name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
-        with:
-          token: ${{ github.token }}
+        # output: storybook-static/
+
+      - name: Switch to main branch
+        run: |
+          git fetch origin main
+          git checkout main
+
+      - name: Copy Storybook to docs/dev
+        run: |
+          mkdir -p docs/dev
+          rm -rf docs/dev/*
+          cp -r storybook-static/* docs/dev/
+
+          # Optional: prevent Jekyll from messing with folders that start with _
+          touch docs/.nojekyll
+          touch docs/dev/.nojekyll
+
+      - name: Commit and push to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/dev docs/.nojekyll docs/dev/.nojekyll
+          git commit -m "Publish Storybook (dev) to /docs/dev" || echo "No changes"
+          git push origin main
