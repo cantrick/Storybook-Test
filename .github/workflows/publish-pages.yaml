@@ -1,8 +1,9 @@
-name: Build Storybook (development) and Publish to main:/docs/dev
+name: Build Storybook and Publish (main + dev)
 
 on:
   push:
     branches:
+      - main
       - development
 
 permissions:
@@ -12,10 +13,9 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout development
+      - name: Checkout current branch
         uses: actions/checkout@v4
         with:
-          ref: development
           fetch-depth: 0
 
       - name: Setup Node
@@ -30,23 +30,22 @@ jobs:
       - name: Build Storybook
         run: npm run build-storybook
 
-      - name: Switch to main branch
-        run: |
-          git fetch origin main
-          git checkout main
+      - name: Add .nojekyll
+        run: touch storybook-static/.nojekyll
 
-      - name: Copy Storybook to docs/dev
+      - name: Choose destination directory
         run: |
-          mkdir -p docs/dev
-          rm -rf docs/dev/*
-          cp -r storybook-static/* docs/dev/
-          touch docs/.nojekyll
-          touch docs/dev/.nojekyll
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "DEST_DIR=." >> $GITHUB_ENV
+          else
+            echo "DEST_DIR=dev" >> $GITHUB_ENV
+          fi
 
-      - name: Commit and push to main
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/dev docs/.nojekyll docs/dev/.nojekyll
-          git commit -m "Publish Storybook (dev) to /docs/dev" || echo "No changes"
-          git push origin main
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./storybook-static
+          destination_dir: ${{ env.DEST_DIR }}
+          keep_files: true
