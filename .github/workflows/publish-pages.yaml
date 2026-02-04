@@ -17,18 +17,19 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-
-      # ---------- Build MAIN -> site/ ----------
+      # ---------- MAIN ----------
       - name: Checkout main
         uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
+
+      - name: Setup Node (main)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
 
       - name: Install deps (main)
         run: npm ci
@@ -43,12 +44,19 @@ jobs:
           cp -r storybook-static/* site/
           touch site/.nojekyll
 
-      # ---------- Build DEVELOPMENT -> site/dev ----------
+      # ---------- DEVELOPMENT ----------
       - name: Checkout development
         uses: actions/checkout@v4
         with:
           ref: development
           fetch-depth: 0
+
+      - name: Setup Node (dev)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
 
       - name: Install deps (dev)
         run: npm ci
@@ -63,7 +71,7 @@ jobs:
           cp -r storybook-static/* site/dev/
           touch site/dev/.nojekyll
 
-      # ---------- Upload artifact for Pages ----------
+      # ---------- Upload artifact ----------
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
