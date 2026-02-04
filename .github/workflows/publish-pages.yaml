@@ -1,22 +1,24 @@
-name: Build Storybook (development) and Publish to main:/docs/dev
+name: Build Storybook and publish to gh-pages (main + dev)
 
 on:
   push:
     branches:
+      - main
       - development
 
 permissions:
   contents: write
 
+concurrency:
+  group: storybook-pages
+  cancel-in-progress: true
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout development
+      - name: Checkout current branch
         uses: actions/checkout@v4
-        with:
-          ref: development
-          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -29,27 +31,23 @@ jobs:
 
       - name: Build Storybook
         run: npm run build-storybook
-        # output: storybook-static/
 
-      - name: Switch to main branch
+      - name: Add .nojekyll
+        run: touch storybook-static/.nojekyll
+
+      - name: Decide destination folder
         run: |
-          git fetch origin main
-          git checkout main
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "DEST_DIR=." >> $GITHUB_ENV
+          else
+            echo "DEST_DIR=dev" >> $GITHUB_ENV
+          fi
 
-      - name: Copy Storybook to docs/dev
-        run: |
-          mkdir -p docs/dev
-          rm -rf docs/dev/*
-          cp -r storybook-static/* docs/dev/
-
-          # Optional: prevent Jekyll from messing with folders that start with _
-          touch docs/.nojekyll
-          touch docs/dev/.nojekyll
-
-      - name: Commit and push to main
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/dev docs/.nojekyll docs/dev/.nojekyll
-          git commit -m "Publish Storybook (dev) to /docs/dev" || echo "No changes"
-          git push origin main
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./storybook-static
+          destination_dir: ${{ env.DEST_DIR }}
+          keep_files: true
