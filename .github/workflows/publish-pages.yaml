@@ -1,81 +1,53 @@
-name: Build Storybook (main + dev) and Deploy to Pages
+name: Build Storybook and publish to gh-pages (main + dev)
 
 on:
   push:
-    branches: [main, development]
+    branches:
+      - main
+      - development
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
-  group: pages
+  group: storybook-pages
   cancel-in-progress: true
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
 
-      # -------- Build MAIN -> site/ (root) --------
-      - name: Checkout main
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-
-      - name: Install deps (main)
+      - name: Install dependencies
         run: npm ci
 
-      - name: Build Storybook (main)
+      - name: Build Storybook
         run: npm run build-storybook
 
-      - name: Stage main build to site/
+      - name: Add .nojekyll
+        run: touch storybook-static/.nojekyll
+
+      - name: Decide destination folder
         run: |
-          mkdir -p site
-          rm -rf site/*
-          cp -r storybook-static/* site/
-          touch site/.nojekyll
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "DEST_DIR=." >> $GITHUB_ENV
+          else
+            echo "DEST_DIR=dev" >> $GITHUB_ENV
+          fi
 
-      # -------- Build DEVELOPMENT -> site/dev --------
-      - name: Checkout development
-        uses: actions/checkout@v4
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          ref: development
-          fetch-depth: 0
-
-      - name: Install deps (dev)
-        run: npm ci
-
-      - name: Build Storybook (dev)
-        run: npm run build-storybook
-
-      - name: Stage dev build to site/dev
-        run: |
-          mkdir -p site/dev
-          rm -rf site/dev/*
-          cp -r storybook-static/* site/dev/
-          touch site/dev/.nojekyll
-
-      # -------- Upload + Deploy --------
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./storybook-static
+          destination_dir: ${{ env.DEST_DIR }}
+          keep_files: true
