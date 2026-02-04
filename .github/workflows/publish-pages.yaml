@@ -17,61 +17,62 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # ---------- MAIN ----------
+      # --- Checkout both branches into separate directories ---
       - name: Checkout main
         uses: actions/checkout@v4
         with:
           ref: main
+          path: src-main
           fetch-depth: 0
 
-      - name: Setup Node (main)
+      - name: Checkout development
+        uses: actions/checkout@v4
+        with:
+          ref: development
+          path: src-dev
+          fetch-depth: 0
+
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: package-lock.json
+          # If lockfiles exist in both, cache off one (or remove this line and keep defaults)
+          cache-dependency-path: src-main/package-lock.json
 
+      # --- Build MAIN -> site/ ---
       - name: Install deps (main)
+        working-directory: src-main
         run: npm ci
 
       - name: Build Storybook (main)
+        working-directory: src-main
         run: npm run build-storybook
 
       - name: Stage main into site/
         run: |
           mkdir -p site
           rm -rf site/*
-          cp -r storybook-static/* site/
+          cp -r src-main/storybook-static/* site/
           touch site/.nojekyll
 
-      # ---------- DEVELOPMENT ----------
-      - name: Checkout development
-        uses: actions/checkout@v4
-        with:
-          ref: development
-          fetch-depth: 0
-
-      - name: Setup Node (dev)
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: package-lock.json
-
+      # --- Build DEV -> site/dev/ ---
       - name: Install deps (dev)
+        working-directory: src-dev
         run: npm ci
 
       - name: Build Storybook (dev)
+        working-directory: src-dev
         run: npm run build-storybook
 
       - name: Stage dev into site/dev
         run: |
           mkdir -p site/dev
           rm -rf site/dev/*
-          cp -r storybook-static/* site/dev/
+          cp -r src-dev/storybook-static/* site/dev/
           touch site/dev/.nojekyll
 
-      # ---------- Upload artifact ----------
+      # --- Upload artifact for Pages ---
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
