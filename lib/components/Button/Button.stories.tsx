@@ -20,3 +20,9 @@ export const Secondary: Story = {
     label: 'Another Button'
   },
 };
+
+export const Thirdly: Story = {
+  args: {
+    label: 'Is this even a button?'
+  },
+};
