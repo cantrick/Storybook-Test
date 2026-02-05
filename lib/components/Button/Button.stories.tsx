@@ -26,3 +26,9 @@ export const Thirdly: Story = {
     label: 'Is this even a button?'
   },
 };
+
+export const Fourthest: Story = {
+  args: {
+    label: 'Button 4'
+  },
+};
